@@ -1,7 +1,3 @@
-以下は、日本語化した`README.md`の例です。
-
----
-
 ## TypeScript Docker サンプルアプリケーション
 
 このプロジェクトは、TypeScriptを使用してExpressで構築されたシンプルなREST APIアプリケーションです。Dockerを使用して開発・実行環境を統一し、APIを操作するためのHTMLインターフェースも提供します。
