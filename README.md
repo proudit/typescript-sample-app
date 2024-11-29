@@ -39,8 +39,8 @@
 
 1. **リポジトリをクローン**:
    ```bash
-   git clone https://github.com/your-repo/typescript-docker-sample.git
-   cd typescript-docker-sample
+   git clone https://github.com/proudit/typescript-sample-app.git
+   cd typescript-sample-app
    ```
 
 2. **依存関係をインストール**:
