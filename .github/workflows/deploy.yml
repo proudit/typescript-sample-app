@@ -1,0 +1,90 @@
+name: Deploy to Amazon ECS
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: ap-northeast-1
+      ASSUME_ROLE: ${{ secrets.ASSUME_ROLE }}
+      ECR_REPOSITORY: typescript-sample-app
+      ECS_CLUSTER_NAME: typescript-sample-app
+      ECS_SERVICE_NAME: typescript-sample-app
+      TASK_DEFINITION_NAME: typescript-sample-app
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials with OIDC
+        id: aws-credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ASSUME_ROLE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Get AWS Account ID
+        id: aws_account
+        run: |
+          echo "AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)" >> $GITHUB_ENV
+
+      - name: Build and Tag Docker image
+        run: |
+          COMMIT_HASH=${{ github.sha }}
+          docker build \
+           -t ${{ env.ECR_REPOSITORY }}:${COMMIT_HASH} \
+           -t ${{ env.ECR_REPOSITORY }}:latest .
+          docker tag ${{ env.ECR_REPOSITORY }}:${COMMIT_HASH} ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${COMMIT_HASH}
+          docker tag ${{ env.ECR_REPOSITORY }}:latest ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
+
+      - name: Push Docker images to Amazon ECR
+        run: |
+          COMMIT_HASH=${{ github.sha }}
+          docker push ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${COMMIT_HASH}
+          docker push ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:latest
+
+      - name: Update ECS Task Definition with new image tag
+        id: update-task-def
+        run: |
+          COMMIT_HASH=${{ github.sha }}
+          ECR_IMAGE="${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPOSITORY }}:${COMMIT_HASH}"
+          
+          # Get the existing task definition and update the image tag
+          EXISTING_TASK_DEF=$(aws ecs describe-task-definition --task-definition ${{ env.TASK_DEFINITION_NAME }})
+          NEW_TASK_DEF=$(echo $EXISTING_TASK_DEF | jq --arg IMAGE "$ECR_IMAGE" '.taskDefinition | .containerDefinitions[0].image = $IMAGE | {containerDefinitions, family, networkMode, taskRoleArn, executionRoleArn, requiresCompatibilities, cpu, memory}')
+
+          # Register the new task definition
+          REGISTERED_TASK_DEF=$(aws ecs register-task-definition --cli-input-json "$(echo $NEW_TASK_DEF)")
+
+          # Extract the version from the task definition ARN
+          NEW_TASK_DEF_VER=$(echo $REGISTERED_TASK_DEF | jq -r '.taskDefinition.taskDefinitionArn' | awk -F: '{print $7}')
+
+          # Save the version as an environment variable
+          echo "NEW_TASK_DEF_VER=$NEW_TASK_DEF_VER" >> $GITHUB_ENV
+          
+      - name: Update ECS Service
+        run: |
+          aws ecs update-service --cluster ${{ env.ECS_CLUSTER_NAME }} \
+            --service ${{ env.ECS_SERVICE_NAME }} \
+            --task-definition ${{ env.TASK_DEFINITION_NAME }}:${{ env.NEW_TASK_DEF_VER }} \
+            --force-new-deployment
+
+      - name: Wait for ECS Service Deployment
+        run: |
+          aws ecs wait services-stable --cluster ${{ env.ECS_CLUSTER_NAME }} \
+            --services ${{ env.ECS_SERVICE_NAME }}
