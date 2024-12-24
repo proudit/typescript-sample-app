@@ -2,11 +2,11 @@ body {
   font-family: Arial, sans-serif;
   margin: 20px;
   padding: 0;
-  background-color: #f4f4f9;
+  background-color: #ff0099;
 }
 
 h1 {
-  color: #333;
+  color: hsl(316, 89%, 36%);
 }
 
 form {
@@ -30,7 +30,7 @@ ul {
 }
 
 li {
-  background: #fff;
+  background: #69c47d;
   border: 1px solid #ddd;
   margin: 5px 0;
   padding: 10px;
@@ -39,8 +39,8 @@ li {
 }
 
 li button {
-  background: red;
-  color: #fff;
+  background: #1f4e1c;
+  color: #5efcff;
   border: none;
   padding: 5px 10px;
   cursor: pointer;
