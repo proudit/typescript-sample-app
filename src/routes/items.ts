@@ -4,11 +4,11 @@ import { Item } from '../types/item';
 const router = Router();
 
 let items: Item[] = [
-  { id: 1, name: 'アイテム1', description: 'これはアイテム1' },
-  { id: 2, name: 'アイテム2', description: 'これはアイテム2' },
-  { id: 3, name: 'アイテム3', description: 'これはアイテム3' },
-  { id: 4, name: 'アイテム4', description: 'これはアイテム4' },
-  { id: 5, name: 'アイテム5', description: 'これはアイテム5' },
+  { id: 1, name: 'Item1', description: 'It is Item1' },
+  { id: 2, name: 'Item2', description: 'It is Item2' },
+  { id: 3, name: 'Item3', description: 'It is Item3' },
+  { id: 4, name: 'Item4', description: 'It is Item4' },
+  { id: 5, name: 'Item5', description: 'It is Item5' },
 ];
 
 // Get all items
